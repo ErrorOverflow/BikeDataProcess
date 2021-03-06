@@ -200,9 +200,43 @@ def drop_chunk(id):
     out_data.to_csv('/Users/mulan/Documents/source_bike/chunk_drop/bike_chunk' + str(id) + '_drop.csv', index=False)
 
 
+def slim_remote():
+    df = pd.read_csv('/data/DiskData/bike_access_around_jinrongjie_1_2.csv')
+
+    drop_list = []
+    pre_index = -1
+    pre_id = ""
+    pre_monitor = ""
+    recv_time = ["" for _ in range(len(df))]
+    for index, row in df.iterrows():
+        if index == len(df) - 1:
+            recv_time[pre_index] = df.iloc[index - 1]['STATS_TIME']
+            drop_list += list(range(pre_index + 1, index + 1))
+            continue
+        if row['IDENTITY_NO'] == pre_id:
+            if row['MONITOR_ID'] == pre_monitor:
+                continue
+            elif row['MONITOR_ID'] != pre_monitor:
+                if index > pre_index + 1:
+                    drop_list += list(range(pre_index + 1, index))
+                recv_time[pre_index] = df.iloc[index - 1]['STATS_TIME']
+                pre_index = index
+                pre_monitor = row['MONITOR_ID']
+        else:
+            if pre_index != -1:
+                if index > pre_index:
+                    drop_list += list(range(pre_index, index))
+                recv_time[pre_index] = df.iloc[index - 1]['STATS_TIME']
+            pre_index = index
+            pre_id = row['IDENTITY_NO']
+            pre_monitor = row['MONITOR_ID']
+        if index % 100000 == 0 and index != 0:
+            print("processing %d / %d" % (index, len(df)), len(drop_list))
+
+    df.insert(df.shape[1], 'RECV_TIME', recv_time)
+    df = df.drop(drop_list)
+    df.to_csv('/data/DiskData/bike_jinrongjie_1-2_slim.csv', index=False)
+
+
 if __name__ == '__main__':
-    process = [mp.Process(target=drop_chunk, args=(i,)) for i in range(10)]
-    for i in range(10):
-        process[i].start()
-    for i in range(10):
-        process[i].join()
+    slim_remote()
