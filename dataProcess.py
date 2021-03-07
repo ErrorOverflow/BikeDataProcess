@@ -201,7 +201,7 @@ def drop_chunk(id):
 
 
 def slim_remote():
-    df = pd.read_csv('/data/DiskData/bike_access_around_jinrongjie_1_2.csv')
+    df = pd.read_csv('/data/DiskData/bike_access_around_jinrongjie_3_5.csv')
 
     drop_list = []
     pre_index = -1
@@ -235,7 +235,95 @@ def slim_remote():
 
     df.insert(df.shape[1], 'RECV_TIME', recv_time)
     df = df.drop(drop_list)
-    df.to_csv('/data/DiskData/bike_jinrongjie_1-2_slim.csv', index=False)
+    df.to_csv('/data/DiskData/bike_jinrongjie_3-5_slim.csv', index=False)
+
+
+def split_task():
+    df = pd.read_csv('/data/DiskData/bike_jinrongjie_1-2_slim.csv')
+    split_num = 16
+    args = [0 for _ in range(split_num)]
+    for i in range(split_num):
+        if i == 0:
+            continue
+        index = int(len(df) / split_num * i)
+        pre_id = df.iloc[index]['IDENTITY_NO']
+        while True:
+            print(index)
+            isSplit = True
+            for j in range(index - 6, index):
+                if df.iloc[j]['IDENTITY_NO'] != pre_id:
+                    isSplit = False
+                    break
+            for j in range(index + 1, index + 7):
+                if df.iloc[j]['IDENTITY_NO'] != pre_id:
+                    isSplit = False
+                    break
+            if isSplit:
+                break
+            index += 1
+        args[i] = index
+
+    for i in range(split_num - 1):
+        print(args[i], args[i + 1])
+        df[args[i], args[i + 1]].to_csv('/data/DiskData/bike_jinrongjie_1-2_slim/slim_chunk' + str(i) + '.csv')
+    df[args[-1], len(df)].to_csv('/data/DiskData/bike_jinrongjie_1-2_slim/slim_chunk' + str(split_num - 1) + '.csv')
+
+
+def multiThread_drop(split_num):
+    process_list = []
+    for i in range(split_num):
+        p = mp.Process(target=drop_remote, args=(i,))
+        p.start()
+        process_list.append(p)
+
+    for p in process_list:
+        p.join()
+
+
+def drop_remote(thread_no):
+    df = pd.read_csv('/data/DiskData//bike_jinrongjie_1-2_slim/slim_chunk' + str(thread_no) + '.csv')
+    drop_list = []
+    window = 4
+    index = 0
+    while index < len(df):
+        if index % 10 == 0:
+            print("Thread No.%d: processing %d / %d" % (thread_no, index, len(df)), len(drop_list))
+        check_point = index + 1
+        isRec = True
+        while True:
+            if check_point >= len(df):
+                isRec = False
+                index = check_point
+                break
+            if check_point > index + window or df.iloc[check_point]['IDENTITY_NO'] != df.iloc[index]['IDENTITY_NO']:
+                isRec = False
+                break
+            if df.iloc[check_point]['MONITOR_ID'] == df.iloc[index]['MONITOR_ID']:
+                break
+            check_point += 1
+        if not isRec:
+            index += 1
+            continue
+        window_length = check_point - index
+        stations = ["" for _ in range(window_length)]
+        for i in range(index, check_point):
+            stations[i - index] = df.iloc[i]['MONITOR_ID']
+        while True:
+            isRec = False
+            for i in range(len(stations)):
+                if df.iloc[check_point]['MONITOR_ID'] == stations[i]:
+                    isRec = True
+                    break
+            if not isRec:
+                break
+            check_point += 1
+        drop_list += list(range(index + 1, check_point))
+        df.loc[index, 'RECV_TIME'] = df.loc[check_point - 1, 'RECV_TIME']
+        index = check_point
+
+    df = df.drop(drop_list)
+    df.to_csv('/data/DiskData/bike_jinrongjie_1-2_drop/bike_jinrongjie_1-2_drop_chunk' + str(thread_no) + '.csv',
+              index=False)
 
 
 if __name__ == '__main__':
