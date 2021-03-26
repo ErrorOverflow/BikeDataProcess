@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="utf-8">
+    <title>MapVGL</title>
+    <meta http-equiv="X-UA-Compatible" content="IE=Edge">
+    <meta name="viewport" content="initial-scale=1.0, user-scalable=no">
+    <style>
+        html,
+        body {
+            width: 100%;
+            height: 100%;
+            margin: 0;
+            padding: 0;
+        }
+        #map_container {
+            width: 100%;
+            height: 100%;
+            margin: 0;
+        }
+    </style>
+    <script src="//api.map.baidu.com/api?v=1.0&type=webgl&ak=1XjLLEhZhQNUzd93EjU5nOGQ"></script>
+    <script src="//mapv.baidu.com/build/mapv.min.js"></script>
+    <script src="https://mapv.baidu.com/gl/examples/static/common.js"></script>
+    <script src="https://code.bdstatic.com/npm/mapvgl@1.0.0-beta.109/dist/mapvgl.min.js"></script>
+    <script src="https://code.bdstatic.com/npm/mapvgl@1.0.0-beta.109/dist/mapvgl.threelayers.min.js"></script>
+</head>
+<body>
+<div id="map_container"></div>
+<script>
+    // 6322,2363
+
+    /* global BMapGL */
+
+    /* global mapv */
+
+    /* global mapvgl */
+
+    /* global initMap */
+
+    /* global purpleStyle */
+
+    var map = initMap({
+        tilt: 45,
+        heading: 0,
+        center: [116.372704,39.924703],
+        zoom: 17,
+        style: purpleStyle
+    });
+
+    var randomCount = 0; // 模拟的飞线的数量
+    var curve = new mapvgl.BezierCurve();
+
+    var data = [];
+    var head_data = [];
+
+
+    var view = new mapvgl.View({
+        map: map
+    });
+
+    head_data.push({
+        geometry: {
+            type: 'Point',
+            coordinates: [116.380295, 39.918877]
+        },
+        properties: {
+            count: 3
+        }
+    });
+
+    var flylineLayer = new mapvgl.FlyLineLayer({
+        style: 'chaos',
+        step: 0.3,
+        color: 'rgba(33, 242, 214, 0.3)',
+        textureColor: function (data) {
+            return data.properties.count > 0.5 ? '#ff0000' : '#56ccdd';
+        },
+        textureWidth: 20,
+        textureLength: 10
+    });
+    var heatmap = new mapvgl.HeatmapLayer({
+        size: 600, // 单个点绘制大小
+        max: 40, // 最大阈值
+        height: 0, // 最大高度，默认为0
+        unit: 'm', // 单位，m:米，px: 像素
+        gradient: { // 对应比例渐变色
+            0.25: 'rgba(0, 0, 255, 1)',
+            0.55: 'rgba(0, 255, 0, 1)',
+            0.85: 'rgba(255, 255, 0, 1)',
+            1: 'rgba(255, 0, 0, 1)'
+        }
+    });
+    // view.addLayer(heatmap);
+    view.addLayer(flylineLayer);
+    // heatmap.setData(heat_data);
+    flylineLayer.setData(data);
+</script>
+</body>
+</html>
