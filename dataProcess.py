@@ -4,6 +4,24 @@ import datetime
 import os
 import matplotlib as plt
 import multiprocessing as mp
+import math
+
+
+def MarsTransBMap(lng, lat):
+    x_pi = math.pi * 3000.0 / 180.0
+    x = lng
+    y = lat
+    z = math.sqrt(x * x + y * y) + 0.00002 * math.sin(y * x_pi)
+    theta = math.atan2(y, x) + 0.000003 * math.cos(x * x_pi)
+    new_lng = z * math.cos(theta) + 0.0065
+    new_lat = z * math.sin(theta) + 0.006
+    return new_lng, new_lat
+
+
+def MarsStr2BMap(lng_str, lat_str):
+    mars_lng = float(lng_str)
+    mars_lat = float(lat_str)
+    return MarsTransBMap(mars_lng, mars_lat)
 
 
 def save_data_csv(in_flow, out_flow):
@@ -200,8 +218,16 @@ def drop_chunk(id):
     out_data.to_csv('/Users/mulan/Documents/source_bike/chunk_drop/bike_chunk' + str(id) + '_drop.csv', index=False)
 
 
-def slim_remote():
-    df = pd.read_csv('/data/DiskData/bike_access_around_jinrongjie_3_5.csv')
+def merge_remote():
+    df = pd.read_csv('/data/DiskData/bike_3-5/drop_6/chunk0.csv')
+    for i in range(1, 24):
+        tmp = pd.read_csv('/data/DiskData/bike_3-5/drop_6/chunk' + str(i) + '.csv')
+        df = df.append(tmp, ignore_index=True)
+    df.to_csv('/data/DiskData/bike_3-5/final.csv', index=False)
+
+
+def slim_remote(thread_no):
+    df = pd.read_csv('/data/DiskData/bike_jinrongjie_3-5_source/slim_chunk' + str(thread_no) + '.csv')
 
     drop_list = []
     pre_index = -1
@@ -235,12 +261,13 @@ def slim_remote():
 
     df.insert(df.shape[1], 'RECV_TIME', recv_time)
     df = df.drop(drop_list)
-    df.to_csv('/data/DiskData/bike_jinrongjie_3-5_slim.csv', index=False)
+    df.to_csv('/data/DiskData/bike_jinrongjie_3-5_slim/chunk' + str(thread_no) + '.csv',
+              index=False)
 
 
 def split_task():
-    df = pd.read_csv('/data/DiskData/bike_jinrongjie_1-2_slim.csv')
-    split_num = 16
+    df = pd.read_csv('/data/DiskData/bike_3-5/drop.csv')
+    split_num = 24
     args = [0 for _ in range(split_num)]
     for i in range(split_num):
         if i == 0:
@@ -248,25 +275,18 @@ def split_task():
         index = int(len(df) / split_num * i)
         pre_id = df.iloc[index]['IDENTITY_NO']
         while True:
-            print(index)
-            isSplit = True
-            for j in range(index - 6, index):
-                if df.iloc[j]['IDENTITY_NO'] != pre_id:
-                    isSplit = False
-                    break
-            for j in range(index + 1, index + 7):
-                if df.iloc[j]['IDENTITY_NO'] != pre_id:
-                    isSplit = False
-                    break
-            if isSplit:
+            if df.iloc[index]['IDENTITY_NO'] == pre_id:
+                index += 1
+            else:
                 break
-            index += 1
         args[i] = index
 
     for i in range(split_num - 1):
         print(args[i], args[i + 1])
-        df[args[i], args[i + 1]].to_csv('/data/DiskData/bike_jinrongjie_1-2_slim/slim_chunk' + str(i) + '.csv')
-    df[args[-1], len(df)].to_csv('/data/DiskData/bike_jinrongjie_1-2_slim/slim_chunk' + str(split_num - 1) + '.csv')
+        df[args[i]:args[i + 1]].to_csv('/data/DiskData/bike_jinrongjie_3-5_source/slim_chunk' + str(i) + '.csv',
+                                       index=False)
+    df[args[-1]:len(df)].to_csv('/data/DiskData/bike_jinrongjie_3-5_source/slim_chunk' + str(split_num - 1) + '.csv',
+                                index=False)
 
 
 def multiThread_drop(split_num):
@@ -281,34 +301,45 @@ def multiThread_drop(split_num):
 
 
 def drop_remote(thread_no):
-    df = pd.read_csv('/data/DiskData//bike_jinrongjie_1-2_slim/slim_chunk' + str(thread_no) + '.csv')
+    df = pd.read_csv('/data/DiskData/bike_3-5/drop_5/chunk' + str(thread_no) + '.csv')
     drop_list = []
-    window = 4
+    window = 6
     index = 0
     while index < len(df):
-        if index % 10 == 0:
+        if index % 10000 == 0:
             print("Thread No.%d: processing %d / %d" % (thread_no, index, len(df)), len(drop_list))
         check_point = index + 1
         isRec = True
         while True:
-            if check_point >= len(df):
+            if check_point > index + window:
+                index += 1
                 isRec = False
-                index = check_point
                 break
-            if check_point > index + window or df.iloc[check_point]['IDENTITY_NO'] != df.iloc[index]['IDENTITY_NO']:
+            if check_point >= len(df) or df.iloc[check_point]['IDENTITY_NO'] != \
+                    df.iloc[index]['IDENTITY_NO']:
+                index = check_point
                 isRec = False
                 break
             if df.iloc[check_point]['MONITOR_ID'] == df.iloc[index]['MONITOR_ID']:
                 break
             check_point += 1
         if not isRec:
-            index += 1
             continue
+
+        pre_point = check_point
+        while check_point < len(df):
+            if check_point > pre_point + window or df.iloc[check_point]['IDENTITY_NO'] != \
+                    df.iloc[index]['IDENTITY_NO']:
+                break
+            if df.iloc[check_point]['MONITOR_ID'] == df.iloc[index]['MONITOR_ID']:
+                pre_point = check_point
+            check_point += 1
+
         window_length = check_point - index
         stations = ["" for _ in range(window_length)]
         for i in range(index, check_point):
             stations[i - index] = df.iloc[i]['MONITOR_ID']
-        while True:
+        while check_point < len(df) and df.iloc[check_point]['IDENTITY_NO'] == df.iloc[index]['IDENTITY_NO']:
             isRec = False
             for i in range(len(stations)):
                 if df.iloc[check_point]['MONITOR_ID'] == stations[i]:
@@ -322,9 +353,56 @@ def drop_remote(thread_no):
         index = check_point
 
     df = df.drop(drop_list)
-    df.to_csv('/data/DiskData/bike_jinrongjie_1-2_drop/bike_jinrongjie_1-2_drop_chunk' + str(thread_no) + '.csv',
-              index=False)
+    df.to_csv('/data/DiskData/bike_3-5/drop_6/chunk' + str(thread_no) + '.csv', index=False)
 
+
+def drop_final():
+    df = pd.read_csv("/data/DiskData/bike_3-5/drop.csv")
+    drop_list = []
+    window = 8
+    index = 0
+    while index < len(df):
+        check_point = index + 1
+        count = window
+        while check_point < len(df):
+            if count < 0:
+                break
+            check_point += 1
+        index += 1
+
+    df = df.drop(drop_list)
+    df.to_csv("/data/DiskData/bike_3-5/final.csv", index=False)
+
+
+def random_collect():
+    source_path = "/data/DiskData/一卡通滴滴数据/市经济信息化局楼宇到达订单数据/"
+    out_head = ['date', 'time',
+                'start_loc', 'start_lng', 'start_lat',
+                'end_loc', 'end_lng', 'end_lat']
+    out_data = [pd.DataFrame(columns=out_head) for _ in range(24)]
+    for p in os.listdir(source_path):
+        if len(p) > 20 and p[0:37] == "didi_daodaxicheng_building_arrive2020":
+            df = pd.read_excel(source_path + p)
+            index = 0
+            while index < len(df):
+                row = df.iloc[index]
+                start_lng, start_lat = MarsStr2BMap(row["上车地lng"], row["上车地lat"])
+                end_lng, end_lat = MarsStr2BMap(row["目的地lng"], row["目的地lat"])
+                tmp = pd.DataFrame(
+                    data=[[row["日期"], row["时间段"],
+                           row["上车楼宇名称"], start_lng, start_lat,
+                           row["目的地名称"], end_lng, end_lat]],
+                    columns=out_head)
+                out_data[int(row["时间段"])] = out_data[int(row["时间段"])].append(tmp, ignore_index=True)
+                index += 37
+            print("finish " + p, len(out_data[18]))
+            if len(out_data[18]) > 500:
+                break
+    for i in range(24):
+        out_data[i].to_csv("/data/DiskData/didi_collect/daoda_random37/" + str(i) + ".csv", index=False)
+
+
+def 
 
 if __name__ == '__main__':
-    slim_remote()
+    random_collect()
