@@ -5,30 +5,7 @@ import os
 import matplotlib as plt
 import multiprocessing as mp
 import math
-
-
-def MarsTransBMap(lng, lat):
-    x_pi = math.pi * 3000.0 / 180.0
-    x = lng
-    y = lat
-    z = math.sqrt(x * x + y * y) + 0.00002 * math.sin(y * x_pi)
-    theta = math.atan2(y, x) + 0.000003 * math.cos(x * x_pi)
-    new_lng = z * math.cos(theta) + 0.0065
-    new_lat = z * math.sin(theta) + 0.006
-    return new_lng, new_lat
-
-
-def MarsStr2BMap(lng_str, lat_str):
-    mars_lng = float(lng_str)
-    mars_lat = float(lat_str)
-    return MarsTransBMap(mars_lng, mars_lat)
-
-
-def save_data_csv(in_flow, out_flow):
-    in_data = pd.Series(in_flow)
-    out_data = pd.Series(out_flow)
-    in_data.to_csv('/Users/mulan/Documents/in_flow.csv', index=False, header=False)
-    out_data.to_csv('/Users/mulan/Documents/out_flow.csv', index=False, header=False)
+from lib import MarsStr2BMap, MarsTransBMap
 
 
 def jinrongjie2slim():
@@ -401,8 +378,6 @@ def random_collect():
     for i in range(24):
         out_data[i].to_csv("/data/DiskData/didi_collect/daoda_random37/" + str(i) + ".csv", index=False)
 
-
-def 
 
 if __name__ == '__main__':
     random_collect()
