@@ -19,6 +19,7 @@ def count():
         shutil.rmtree(save_dir)
     except Exception:
         pass
+
     df = pd.read_csv("/data/DiskData/bike_3-5/jrj_like_NYC.csv", parse_dates=['starttime', 'stoptime'])
     df_head = ['in_flow', 'out_flow']
     df_index = list(range(0, 24))
