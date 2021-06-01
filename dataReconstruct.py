@@ -37,26 +37,29 @@ def build_string(start, end, num):
 
 
 def generate_code():
-    location = pd.read_csv("C:\\Users\\wml\\Desktop\\bike_monitor_info.csv", index_col=0)
-    matrix = pd.read_csv("C:\\Users\\wml\\Desktop\\bike_matrix.csv", index_col=0)
-    with open('C:\\Users\\wml\\Desktop\\test.txt', 'a+', encoding='utf-8') as f:
+    location = pd.read_csv("/data/DiskData/bike_3-5/bike_jinrongjie_monitor_info_new.csv", index_col=0)
+    matrix = pd.read_csv("/data/DiskData/bike_3-5/result.csv", index_col=0)
+    count = 0
+    with open('/data/DiskData/bike_3-5/draw_test.html', 'a+', encoding='utf-8') as f:
         i = 0
         for index, row in matrix.iterrows():
             j = 0
             for column, item in row.iteritems():
-                if item <= 400:
+                if item <= 100:
                     j += 1
                     continue
+                count += 1
                 rec = ""
                 start = str(location.loc[int(matrix.index[i])]['BAIDU_LONGITUDE']) + ", " + str(
                     location.loc[int(matrix.index[i])]['BAIDU_LATITUDE'])
                 end = str(location.loc[int(matrix.columns[j])]['BAIDU_LONGITUDE']) + ", " + str(
                     location.loc[int(matrix.columns[j])]['BAIDU_LATITUDE'])
-                num = str(int(item / 100))
+                num = str(int(item/10))
                 rec += build_string(start, end, num)
                 f.write(rec)
                 j += 1
             i += 1
+    print(count)
 
 
 def generate_head(f):
@@ -164,4 +167,4 @@ def judge_location():
 
 
 if __name__ == '__main__':
-    generate_didi()
+    generate_code()

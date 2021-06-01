@@ -52,22 +52,12 @@
     var curve = new mapvgl.BezierCurve();
 
     var data = [];
-    var head_data = [];
-
 
     var view = new mapvgl.View({
         map: map
     });
 
-    head_data.push({
-        geometry: {
-            type: 'Point',
-            coordinates: [116.380295, 39.918877]
-        },
-        properties: {
-            count: 3
-        }
-    });
+
 
     var flylineLayer = new mapvgl.FlyLineLayer({
         style: 'chaos',
@@ -79,21 +69,8 @@
         textureWidth: 20,
         textureLength: 10
     });
-    var heatmap = new mapvgl.HeatmapLayer({
-        size: 600, // 单个点绘制大小
-        max: 40, // 最大阈值
-        height: 0, // 最大高度，默认为0
-        unit: 'm', // 单位，m:米，px: 像素
-        gradient: { // 对应比例渐变色
-            0.25: 'rgba(0, 0, 255, 1)',
-            0.55: 'rgba(0, 255, 0, 1)',
-            0.85: 'rgba(255, 255, 0, 1)',
-            1: 'rgba(255, 0, 0, 1)'
-        }
-    });
-    // view.addLayer(heatmap);
+
     view.addLayer(flylineLayer);
-    // heatmap.setData(heat_data);
     flylineLayer.setData(data);
 </script>
 </body>
